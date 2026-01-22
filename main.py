@@ -65,7 +65,7 @@ start = datetime.now(UTC)
 total = len(symbols)
 
 for i, sym in enumerate(symbols):
-    print(f"[{i}/{total}] Scanning {sym}", end="\r", flush=True)
+    print(f"[{i}/{total}] Scanning {sym.replace('/USDT','')}", end="\r", flush=True)
     r = scan_symbol(sym)
     if r:
         results.append(r)
