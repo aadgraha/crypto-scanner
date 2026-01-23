@@ -3,12 +3,13 @@ import ccxt
 import pandas as pd
 from datetime import datetime, UTC
 
-if len(sys.argv) != 2:
-    print("Usage: python main.py [timeframe]")
-    print("Example: python main.py 4h")
+if len(sys.argv) != 3:
+    print("Usage: python main.py [timeframe] [above|below]")
+    print("Example: python main.py 4h above")
     sys.exit(1)
 
-timeframe = sys.argv[1]   # args => 15m, 4h, 1d, 1w
+timeframe = sys.argv[1]
+mode = sys.argv[2].lower() # args => 15m, 4h, 1d, 1w
 
 exchange = ccxt.binance({
     "enableRateLimit": True
@@ -43,12 +44,25 @@ def scan_symbol(symbol):
 
         last = df.iloc[-1]
 
-        if (
-            last["close"] > last["ema20"] >
-            last["ema50"] >
-            last["ema100"] >
-            last["ema200"]
-        ):
+        if mode == "above":
+            condition = (
+                last["close"] > last["ema20"] and
+                last["ema20"] > last["ema50"] and
+                last["ema50"] > last["ema100"] and
+                last["ema100"] > last["ema200"]
+            )
+        elif mode == "below":
+            condition = (
+                last["close"] < last["ema20"] and
+                last["ema20"] < last["ema50"] and
+                last["ema50"] < last["ema100"] and
+                last["ema100"] < last["ema200"]
+            )
+        else:
+            return None
+
+
+        if condition:
             return {
                 "symbol": symbol,
                 "price": round(last["close"], 6),
@@ -74,7 +88,11 @@ for i, sym in enumerate(symbols):
 
 print("\n===================================")
 print(f"EMA TREND SCANNER ({timeframe})")
-print("Price > EMA20 > EMA50 > EMA100 > EMA200")
+if mode == "above":
+    print("Price > EMA20 > EMA50 > EMA100 > EMA200")
+else:
+    print("Price < EMA20 < EMA50 < EMA100 < EMA200")
+
 print("===================================\n")
 
 for r in results:
