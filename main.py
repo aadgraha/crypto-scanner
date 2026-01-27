@@ -1,7 +1,14 @@
 import sys
 import ccxt
 import pandas as pd
+import requests
+import os
 from datetime import datetime, UTC
+from dotenv import load_dotenv
+
+load_dotenv()
+BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
+CHAT_ID  = os.getenv("TG_CHAT_ID")
 
 if len(sys.argv) != 3:
     print("Usage: python main.py [timeframe] [above|below]")
@@ -27,6 +34,8 @@ else:
     print("Timeframe must be one of:", ', '.join(valid_timeframes))
     print("Mode must be: above or below")
     sys.exit(1)
+
+
 
 exchange = ccxt.binance({
     "enableRateLimit": True
@@ -88,6 +97,19 @@ def scan_symbol(symbol):
     except Exception as e:
         return None
 
+def send_telegram(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    requests.post(url, json=payload)
+
+def send_telegram_long(text, chunk=3500):
+    for i in range(0, len(text), chunk):
+        send_telegram(text[i:i+chunk])
+
 results = []
 start = datetime.now(UTC)
 total = len(symbols)
@@ -99,24 +121,31 @@ for i, sym in enumerate(symbols):
     r = scan_symbol(sym)
     if r:
         results.append(r)
-
-print("\n===================================")
-print(f"EMA TREND SCANNER ({timeframe})")
+msg = []
+msg.append(f"<b>EMA TREND SCANNER ({timeframe})</b>")
 if mode == "above":
-    print("Price > EMA20 > EMA50 > EMA100 > EMA200")
+    msg.append("Price > EMA20 > EMA50 > EMA100 > EMA200")
 else:
-    print("Price < EMA20 < EMA50 < EMA100 < EMA200")
-print("===================================\n")
+    msg.append("Price < EMA20 < EMA50 < EMA100 < EMA200")
 
+msg.append("")
+for r in results:
+    msg.append(
+        f"<a href='https://www.tradingview.com/chart/?symbol=BINANCE:{r['symbol'].replace('/', '')}'>{r['symbol']}</a> |"
+        f"P:{r['price']} "
+    )
+coin_found = f"\nFound: {len(results)} coins"
+time_elapsed = f"Time: {(datetime.now(UTC) - start).seconds}s"
+msg.append(coin_found)
+msg.append(time_elapsed)
 for r in results:
     print(
         f"{r['symbol']:12} "
         f"P:{r['price']:>10} "
-        f"E20:{r['ema20']:>10} "
-        f"E50:{r['ema50']:>10} "
-        f"E100:{r['ema100']:>10} "
-        f"E200:{r['ema200']:>10}"
     )
+print(coin_found)
+print(time_elapsed)
+final_msg = "\n".join(msg)
+send_telegram_long(final_msg)
+print("Data send to telegram.")
 
-print(f"\nFound: {len(results)} coins")
-print(f"Time: {(datetime.now(UTC) - start).seconds}s")
