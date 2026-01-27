@@ -35,12 +35,9 @@ else:
     print("Mode must be: above or below")
     sys.exit(1)
 
-
-
 exchange = ccxt.binance({
     "enableRateLimit": True
 })
-
 markets = exchange.load_markets()
 symbols = [
     s for s in markets
@@ -113,6 +110,24 @@ def send_telegram_long(text, chunk=3500):
 results = []
 start = datetime.now(UTC)
 total = len(symbols)
+tv_interval_map = {
+    "1m": "1",
+    "3m": "3",
+    "5m": "5",
+    "15m": "15",
+    "30m": "30",
+    "1h": "60",
+    "2h": "120",
+    "4h": "240",
+    "6h": "360",
+    "8h": "480",
+    "12h": "720",
+    "1d": "D",
+    "3d": "3D",
+    "1w": "W",
+    "1M": "M"
+}
+tv_interval = tv_interval_map.get(timeframe, "60")
 
 for i, sym in enumerate(symbols):
     base = sym.split("/")
@@ -131,9 +146,9 @@ else:
 msg.append("")
 for r in results:
     msg.append(
-        f"<a href='https://www.tradingview.com/chart/?symbol=BINANCE:{r['symbol'].replace('/', '')}'>{r['symbol']}</a> |"
-        f"P:{r['price']} "
-    )
+    f"<a href='https://www.tradingview.com/chart/?symbol=BINANCE:{r['symbol'].replace('/', '')}&interval={tv_interval}'>"
+    f"{r['symbol']}</a> | P:{r['price']}"
+)
 coin_found = f"\nFound: {len(results)} coins"
 time_elapsed = f"Time: {(datetime.now(UTC) - start).seconds}s"
 msg.append(coin_found)
@@ -148,4 +163,3 @@ print(time_elapsed)
 final_msg = "\n".join(msg)
 send_telegram_long(final_msg)
 print("Data send to telegram.")
-
